@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void print_usage(char *argv[]) {
   printf("Usage: %s -n -f <databse file>\n", argv[0]);
@@ -16,10 +17,12 @@ int main(int argc, char *argv[]) {
   int c;
   bool newfile = false;
   char *filepath = NULL;
+  char *addString = NULL;
   int dbfd = -1;
   struct dbheader_t *header = NULL;
+  struct employee_t *employees = NULL;
 
-  while ((c = getopt(argc, argv, "nf:")) != -1) {
+  while ((c = getopt(argc, argv, "nf:a:")) != -1) {
 
     switch (c) {
     case 'n':
@@ -27,6 +30,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'f':
       filepath = optarg;
+      break;
+    case 'a':
+      addString = optarg;
       break;
     case '?':
       printf("Unknown option -%c\n", c);
@@ -66,10 +72,19 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  printf("Newfile: %d\n", newfile);
-  printf("filepath: %s\n", filepath);
+  if (read_employees(dbfd, header, &employees) != STATUS_SUCCESS) {
+    printf("Failed to read employees\n");
+    return -1;
+  };
 
-  output_file(dbfd, header);
+  if (addString) {
+    header->count++;
+
+    employees = realloc(employees, header->count * (sizeof(struct employee_t)));
+    add_employee(header, employees, addString);
+  }
+
+  output_file(dbfd, header, employees);
 
   return 0;
 }

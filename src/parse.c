@@ -74,22 +74,73 @@ int validate_db_header(int fd, struct dbheader_t **headerOut) {
   return STATUS_SUCCESS;
 };
 
-void output_file(int fd, struct dbheader_t *header) {
+void output_file(int fd, struct dbheader_t *header,
+                 struct employee_t *employees) {
   if (fd < 0) {
     printf("Got a bad file descriptor\n");
     return;
   }
 
+  int realCount = header->count;
   header->magic = htonl(header->magic);
-  header->filesize = htonl(header->filesize);
+  header->filesize =
+      htonl(sizeof(struct dbheader_t) + sizeof(struct employee_t) * realCount);
   header->version = htons(header->version);
-  header->count = htonl(header->count);
+  header->count = htons(header->count);
 
   lseek(fd, 0, SEEK_SET);
   write(fd, header, sizeof(struct dbheader_t));
 
+  int i = 0;
+
+  for (; i < realCount; i++) {
+    employees[i].hours = htonl(employees[i].hours);
+    write(fd, employees, sizeof(struct employee_t));
+  }
+
   return;
 };
 
-// int read_employees(int fd, struct dbheader_t *header,
-//                     struct employee_t **employeesOut) {};
+int read_employees(int fd, struct dbheader_t *header,
+                   struct employee_t **employeesOut) {
+  if (fd < 0) {
+    printf("Got a bad file descriptor\n");
+    return STATUS_ERROR;
+  }
+
+  int count = header->count;
+
+  struct employee_t *employees = calloc(count, sizeof(struct employee_t));
+
+  if (employees == -1) {
+    printf("Malloc failed\n");
+    return STATUS_ERROR;
+  }
+
+  read(fd, employees, count * sizeof(struct employee_t));
+
+  int i = 0;
+
+  for (; i < count; i++) {
+    employees[i].hours = ntohl(employees[i].hours);
+  }
+
+  *employeesOut = employees;
+
+  return STATUS_SUCCESS;
+}
+
+int add_employee(struct dbheader_t *header, struct employee_t *employees,
+                 char *addString) {
+  char *name = strtok(addString, ",");
+  char *addr = strtok(NULL, ",");
+  char *hours = strtok(NULL, ",");
+
+  strncpy(employees[header->count - 1].name, name,
+          sizeof(employees[header->count - 1].name));
+  strncpy(employees[header->count - 1].address, addr,
+          sizeof(employees[header->count - 1].address));
+  employees[header->count - 1].hours = atoi(hours);
+
+  return STATUS_SUCCESS;
+}
