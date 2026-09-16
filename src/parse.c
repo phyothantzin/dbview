@@ -83,8 +83,8 @@ void output_file(int fd, struct dbheader_t *header,
 
   int realCount = header->count;
   header->magic = htonl(header->magic);
-  header->filesize =
-      htonl(sizeof(struct dbheader_t) + sizeof(struct employee_t) * realCount);
+  header->filesize = htonl(sizeof(struct dbheader_t) +
+                           (sizeof(struct employee_t) * realCount));
   header->version = htons(header->version);
   header->count = htons(header->count);
 
@@ -95,7 +95,7 @@ void output_file(int fd, struct dbheader_t *header,
 
   for (; i < realCount; i++) {
     employees[i].hours = htonl(employees[i].hours);
-    write(fd, employees, sizeof(struct employee_t));
+    write(fd, &employees[i], sizeof(struct employee_t));
   }
 
   return;
@@ -143,4 +143,15 @@ int add_employee(struct dbheader_t *header, struct employee_t *employees,
   employees[header->count - 1].hours = atoi(hours);
 
   return STATUS_SUCCESS;
+}
+
+void list_employees(struct dbheader_t *header, struct employee_t *employees) {
+  int i = 0;
+
+  for (; i < header->count; i++) {
+    printf("Employee %d\n", i);
+    printf("\tName: %s\n", employees[i].name);
+    printf("\tAddress:%s\n", employees[i].address);
+    printf("\tHours: %d\n", employees[i].hours);
+  }
 }

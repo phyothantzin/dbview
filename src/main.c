@@ -21,8 +21,9 @@ int main(int argc, char *argv[]) {
   int dbfd = -1;
   struct dbheader_t *header = NULL;
   struct employee_t *employees = NULL;
+  bool list = false;
 
-  while ((c = getopt(argc, argv, "nf:a:")) != -1) {
+  while ((c = getopt(argc, argv, "nf:a:l")) != -1) {
 
     switch (c) {
     case 'n':
@@ -33,6 +34,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'a':
       addString = optarg;
+      break;
+    case 'l':
+      list = true;
       break;
     case '?':
       printf("Unknown option -%c\n", c);
@@ -82,6 +86,10 @@ int main(int argc, char *argv[]) {
 
     employees = realloc(employees, header->count * (sizeof(struct employee_t)));
     add_employee(header, employees, addString);
+  }
+
+  if (list) {
+    list_employees(header, employees);
   }
 
   output_file(dbfd, header, employees);
