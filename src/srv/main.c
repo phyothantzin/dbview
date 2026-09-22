@@ -132,6 +132,7 @@ void poll_loop(unsigned short port, struct dbheader_t *header,
           }
         } else {
           printf("Received data from client: %s\n", clientStates[slot].buffer);
+          handle_client_fsm(header, employees, &clientStates[slot]);
         }
       }
     }
