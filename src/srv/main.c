@@ -39,7 +39,6 @@ void poll_loop(unsigned short port, struct dbheader_t *header,
   if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror("socket");
     exit(EXIT_FAILURE);
-    ;
   }
 
   if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
@@ -103,7 +102,7 @@ void poll_loop(unsigned short port, struct dbheader_t *header,
         close(conn_fd);
       } else {
         clientStates[freeSlot].fd = conn_fd;
-        clientStates[freeSlot].state = STATE_CONNECTED;
+        clientStates[freeSlot].state = STATE_HELLO;
         nfds++;
         printf("Slot %d has fd %d\n", freeSlot, clientStates[freeSlot].fd);
       }
@@ -131,7 +130,6 @@ void poll_loop(unsigned short port, struct dbheader_t *header,
             nfds--;
           }
         } else {
-          printf("Received data from client: %s\n", clientStates[slot].buffer);
           handle_client_fsm(header, employees, &clientStates[slot]);
         }
       }
@@ -152,7 +150,6 @@ int main(int argc, char *argv[]) {
   bool list = false;
 
   while ((c = getopt(argc, argv, "nf:p:")) != -1) {
-
     switch (c) {
     case 'n':
       newfile = true;

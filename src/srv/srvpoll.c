@@ -3,9 +3,26 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "srvpoll.h"
+
+void fsm_reply_hello(clientstate_t *client, dbproto_hdr_t *header) {
+  header->type = htonl(MSG_HELLO_RES);
+  header->len = htons(1);
+  dbproto_hello_res *hello = (dbproto_hello_res *)&header[1];
+  hello->proto = htons(PROTO_VER);
+
+  write(client->fd, header, sizeof(dbproto_hdr_t) + sizeof(dbproto_hello_res));
+}
+
+void fsm_reply_hello_err(clientstate_t *client, dbproto_hdr_t *header) {
+  header->type = htonl(MSG_ERROR);
+  header->len = htons(0);
+
+  write(client->fd, header, sizeof(dbproto_hdr_t));
+}
 
 void handle_client_fsm(struct dbheader_t *header, struct employee_t *employees,
                        clientstate_t *client) {
@@ -15,7 +32,7 @@ void handle_client_fsm(struct dbheader_t *header, struct employee_t *employees,
   hdr->len = ntohs(hdr->len);
 
   if (client->state == STATE_HELLO) {
-
+    printf("Client state is STATE_HELLO\n");
     if (hdr->type != MSG_HELLO_REQ || hdr->len != 1) {
       printf("Didn't get the MES_HELLO in Hello state\n");
     }
@@ -23,10 +40,14 @@ void handle_client_fsm(struct dbheader_t *header, struct employee_t *employees,
     dbproto_hello_req *hello = (dbproto_hello_req *)&hdr[1];
     hello->proto = ntohs(hello->proto);
     if (hello->proto != PROTO_VER) {
-      printf("Protocol version mismatch....\n");
+      printf("Protocol version mismatch...\n");
+      fsm_reply_hello_err(client, hdr);
+      return;
     }
 
+    fsm_reply_hello(client, hdr);
     client->state = STATE_MSG;
+    printf("Client upgraded to STATE_MSG\n");
   }
 
   if (client->state == STATE_MSG) {
