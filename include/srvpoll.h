@@ -29,7 +29,7 @@ int find_free_slot(clientstate_t *states);
 
 int find_slot_by_fd(clientstate_t *states, int fd);
 
-void handle_client_fsm(struct dbheader_t *header, struct employee_t *employees,
-                       clientstate_t *states);
+void handle_client_fsm(struct dbheader_t *header, struct employee_t **employees,
+                       clientstate_t *states, int dbfd);
 
 #endif

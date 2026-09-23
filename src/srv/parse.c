@@ -92,11 +92,17 @@ void output_file(int fd, struct dbheader_t *header,
   write(fd, header, sizeof(struct dbheader_t));
 
   int i = 0;
-
   for (; i < realCount; i++) {
     employees[i].hours = htonl(employees[i].hours);
     write(fd, &employees[i], sizeof(struct employee_t));
+    employees[i].hours = ntohl(employees[i].hours);
   }
+
+  header->magic = ntohl(header->magic);
+  header->filesize = ntohl(sizeof(struct dbheader_t) +
+                           (sizeof(struct employee_t) * realCount));
+  header->version = ntohs(header->version);
+  header->count = ntohs(header->count);
 
   return;
 };
@@ -109,38 +115,75 @@ int read_employees(int fd, struct dbheader_t *header,
   }
 
   int count = header->count;
+  if (count == 0) {
+    *employeesOut = NULL;
+    return STATUS_SUCCESS;
+  }
 
   struct employee_t *employees = calloc(count, sizeof(struct employee_t));
-
-  if (employees == -1) {
-    printf("Malloc failed\n");
+  if (employees == NULL) {
+    printf("Malloc/Calloc failed\n");
     return STATUS_ERROR;
   }
 
   read(fd, employees, count * sizeof(struct employee_t));
 
-  int i = 0;
-
-  for (; i < count; i++) {
+  for (int i = 0; i < count; i++) {
     employees[i].hours = ntohl(employees[i].hours);
   }
 
   *employeesOut = employees;
-
   return STATUS_SUCCESS;
 }
 
-int add_employee(struct dbheader_t *header, struct employee_t *employees,
+int add_employee(struct dbheader_t *header, struct employee_t **employees,
                  char *addString) {
-  char *name = strtok(addString, ",");
-  char *addr = strtok(NULL, ",");
-  char *hours = strtok(NULL, ",");
+  printf("DB currently has %d\n", header->count);
 
-  strncpy(employees[header->count - 1].name, name,
-          sizeof(employees[header->count - 1].name));
-  strncpy(employees[header->count - 1].address, addr,
-          sizeof(employees[header->count - 1].address));
-  employees[header->count - 1].hours = atoi(hours);
+  char *name = strtok(addString, ",");
+  if (name == NULL) {
+    return STATUS_ERROR;
+  }
+
+  char *addr = strtok(NULL, ",");
+  if (addr == NULL) {
+    return STATUS_ERROR;
+  }
+
+  char *hours = strtok(NULL, ",");
+  if (hours == NULL || atoi(hours) == 0) {
+    return STATUS_ERROR;
+  }
+
+  int new_count = header->count + 1;
+
+  if (*employees == NULL) {
+    *employees = malloc(new_count * sizeof(struct employee_t));
+  } else {
+    struct employee_t *temp =
+        realloc(*employees, new_count * sizeof(struct employee_t));
+    if (temp == NULL) {
+      printf("Realloc failed\n");
+      return STATUS_ERROR;
+    }
+    *employees = temp;
+  }
+
+  if (*employees == NULL) {
+    return STATUS_ERROR;
+  }
+
+  struct employee_t *employees_ptr = *employees;
+
+  // Populate the new record at the current header->count index
+  strncpy(employees_ptr[header->count].name, name,
+          sizeof(employees_ptr[header->count].name));
+  strncpy(employees_ptr[header->count].address, addr,
+          sizeof(employees_ptr[header->count].address));
+  employees_ptr[header->count].hours = atoi(hours);
+
+  // Update header count after successful population
+  header->count = new_count;
 
   return STATUS_SUCCESS;
 }

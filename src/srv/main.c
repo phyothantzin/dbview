@@ -25,7 +25,7 @@ void print_usage(char *argv[]) {
 }
 
 void poll_loop(unsigned short port, struct dbheader_t *header,
-               struct employee_t *employees) {
+               struct employee_t **employees, int dbfd) {
   int listen_fd, conn_fd, freeSlot;
   struct sockaddr_in server_addr, client_addr;
   socklen_t client_len = sizeof(client_addr);
@@ -130,7 +130,7 @@ void poll_loop(unsigned short port, struct dbheader_t *header,
             nfds--;
           }
         } else {
-          handle_client_fsm(header, employees, &clientStates[slot]);
+          handle_client_fsm(header, employees, &clientStates[slot], dbfd);
         }
       }
     }
@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
     return -1;
   };
 
-  poll_loop(port, header, employees);
+  poll_loop(port, header, &employees, dbfd);
 
   output_file(dbfd, header, employees);
 

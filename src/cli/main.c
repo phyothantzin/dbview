@@ -2,6 +2,7 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -38,6 +39,39 @@ int send_hello(int fd) {
   }
 
   printf("Server connected, protocol v1\n");
+  return STATUS_SUCCESS;
+}
+
+int send_employee(int fd, char *addarg) {
+  char buf[4096] = {0};
+
+  dbproto_hdr_t *hdr = buf;
+  hdr->type = MSG_EMPLOYEE_ADD_REQ;
+  hdr->len = 1;
+
+  dbproto_add_employee_req *employee = (dbproto_hello_req *)&hdr[1];
+  strncpy(&employee->data, addarg, sizeof(employee->data));
+
+  hdr->type = htonl(hdr->type);
+  hdr->len = htons(hdr->len);
+
+  write(fd, buf, sizeof(dbproto_hdr_t) + sizeof(dbproto_add_employee_req));
+
+  read(fd, buf, sizeof(buf));
+
+  hdr->type = ntohl(hdr->type);
+  hdr->len = ntohs(hdr->len);
+
+  if (hdr->type == MSG_ERROR) {
+    printf("Improper format for adding employee...\n");
+    close(fd);
+    return STATUS_ERROR;
+  }
+
+  if (hdr->type == MSG_EMPLOYEE_ADD_RES) {
+    printf("Employee added successfully\n");
+  }
+
   return STATUS_SUCCESS;
 }
 
@@ -101,6 +135,10 @@ int main(int argc, char *argv[]) {
   if (send_hello(fd) != STATUS_SUCCESS) {
     return -1;
   };
+
+  if (addarg) {
+    send_employee(fd, addarg);
+  }
 
   close(fd);
 }
