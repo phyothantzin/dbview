@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,16 +76,60 @@ int send_employee(int fd, char *addarg) {
   return STATUS_SUCCESS;
 }
 
+int list_employee(int fd) {
+  char buf[4096] = {0};
+
+  dbproto_hdr_t *hdr = (dbproto_hdr_t *)buf;
+  hdr->type = MSG_EMPLOYEE_LIST_REQ;
+  hdr->len = 0;
+
+  hdr->type = htonl(hdr->type);
+  hdr->len = htons(hdr->len);
+
+  write(fd, buf, sizeof(dbproto_hdr_t) + sizeof(dbproto_employee_list_req));
+
+  read(fd, hdr, sizeof(dbproto_hdr_t));
+
+  hdr->type = ntohl(hdr->type);
+  hdr->len = ntohs(hdr->len);
+
+  if (hdr->type == MSG_ERROR) {
+    printf("Unable to list employees\n");
+    close(fd);
+    return STATUS_ERROR;
+  }
+
+  if (hdr->type == MSG_EMPLOYEE_LIST_RES) {
+    printf("listing employees...\n");
+    dbproto_employee_list_res *employee = (dbproto_employee_list_res *)&hdr[1];
+    int i = 0;
+    for (; i < hdr->len; i++) {
+      read(fd, employee, sizeof(dbproto_employee_list_res));
+      employee->hours = ntohl(employee->hours);
+      printf("Employee %d:\n", i);
+      printf("\tName: %s\n", employee->name);
+      printf("\tAddress: %s\n", employee->address);
+      printf("\tHours: %d\n", employee->hours);
+    }
+  }
+
+  return STATUS_SUCCESS;
+}
+
 int main(int argc, char *argv[]) {
   char *addarg = NULL;
   char *portarg = NULL, *hostarg = NULL;
   unsigned short port = 0;
+  bool list = false;
 
   int c;
-  while ((c = getopt(argc, argv, "p:h:a:")) != -1) {
+  while ((c = getopt(argc, argv, "p:h:a:l")) != -1) {
     switch (c) {
     case 'a':
       addarg = optarg;
+      break;
+    case 'l':
+      list = true;
       break;
     case 'p':
       portarg = optarg;
@@ -138,6 +183,10 @@ int main(int argc, char *argv[]) {
 
   if (addarg) {
     send_employee(fd, addarg);
+  }
+
+  if (list) {
+    list_employee(fd);
   }
 
   close(fd);
